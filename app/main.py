@@ -1,24 +1,12 @@
-from fastapi import Depends, FastAPI
-from pydantic import BaseModel
+from typing import List
+
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from . import models
+from . import crud, models, schemas
 from .database import SessionLocal, engine
 
 app = FastAPI()
-
-
-class UserCreate(BaseModel):
-    email: str
-    password: str
-
-
-class User(BaseModel):
-    id: int
-    email: str
-
-    class Config:
-        orm_mode = True
 
 
 def get_db():
@@ -29,24 +17,25 @@ def get_db():
         db.close()
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@app.get("/users", response_model=List[schemas.User])
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_users(db, skip=skip, limit=limit)
 
 
-@app.get("/users/{user_id}", response_model=User)
+@app.post("/users", response_model=schemas.User)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = crud.get_user_by_email(db, user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email is already in use")
+    return crud.create_user(db, user)
+
+
+@app.get("/users/{user_id}", response_model=schemas.User)
 def read_user(user_id: int, db: Session = Depends(get_db)):
-    return db.query(models.User).first()
-
-
-@app.post("/users", response_model=User)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    hashed_password = f"kek {user.password}"
-    new_user = models.User(email=user.email, hashed_password=hashed_password)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    db_user = crud.get_user(db, user_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return db_user
 
 
 @app.on_event("startup")
