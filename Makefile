@@ -6,7 +6,9 @@ install:
 .PHONY: lint
 lint:
 	black app
-	isort app/*.py
+	isort -rc -sl app
+	autoflake --remove-all-unused-imports -i -r app
+	isort -rc -m 3 app
 	flake8 app
 	mypy app
 
