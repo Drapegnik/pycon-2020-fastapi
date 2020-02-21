@@ -38,6 +38,16 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     return db_user
 
 
+# @app.post("/items", response_model=schemas.Item)
+# def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
+#     return crud.create_user_item(db, item)
+
+
+@app.get("/items", response_model=List[schemas.Item])
+def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_items(db, skip=skip, limit=limit)
+
+
 @app.on_event("startup")
 def startup_event():
     models.Base.metadata.create_all(bind=engine)
